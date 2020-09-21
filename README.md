@@ -1,5 +1,4 @@
 # Normalized-ALS-Research
-The summer internship work of Gabe Pesco and Douglass Turnbull, working on mimizing popularity bias in the ALS recommender system.
 
 **NOTE: The required files to run this code are not publically available. If you request the MPD from spotify, you can use this after generating your required matrices from the dataset.**
 
