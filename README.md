@@ -1,6 +1,6 @@
 # Normalized-ALS-Research
 
-**NOTE: The required files to run this code are not publically available. If you request the MPD from spotify, you can use this after generating your required matrices from the dataset.**
+**NOTE: The required files to run this code are not publicly available. If you request the MPD from spotify, you can use this after generating your required matrices from the dataset.**
 
 ## Improving Long-Tail Recommendation in ALS using Item Normalized Interaction Matrix
 
