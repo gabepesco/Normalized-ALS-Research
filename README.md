@@ -9,7 +9,7 @@ Recommender systems are a crucial field of machine learning, used across many di
 
 More popular items tend to accrue many more interactions. For example, in the Spotify Million Playlist Dataset (MPD), the song added to the most playlists is Kendrick Lamar’s "Humble", which showed up on over 45 thousand playlists, reaching 4.5% presence on all playlists in the dataset. By comparison, 85% of the 2.2 million songs were on less than 10 playlists, with at most a .001% presence. This disparity leads to serious consequences in the recommendation of the long tail items, as the total error of the model is being contributed to at a much higher proportion by the most popular songs. This influences the weights in the factor matrices to be tuned so that they primarily minimize the error on those items.
 
-A simple workaround for this is to normalize all items by projecting them onto vectors of length 1. This is done on the sparse interaction matrix using the normalize function from sklearn.preprocessing. This significantly reduces the variance in the impact of each song onto the weighting system by changing the value of the interaction to be inversely related with the popularity of the song.
+One way to correct for this is to normalize all items by projecting them onto vectors of length 1. This is done on the sparse interaction matrix using the normalize function from sklearn.preprocessing. This significantly reduces the variance in the impact of each song onto the weighting system by changing the value of the interaction to be inversely related with the popularity of the song.
 
 ## Results
 
