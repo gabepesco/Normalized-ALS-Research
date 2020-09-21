@@ -26,4 +26,6 @@ As we can see, both ALS models offer significantly higher performance than the p
 
 2. Adding a popularity vector into the user and item factor update rule equations to more accurately be able to give every song the same weight in the loss function. 
 
-3. Utilizing probabilistic models to determine the significance of each interaction by its inverse relationship with popularity. Alternatively, there could be newer recommender systems that also utilize interaction matrices that could offer a better algorithm that is more easily modifiable than ALS to improve long tail recommendation.
+3. Utilizing probabilistic models to determine the significance of each interaction with respect to the popularity of each song and the frequency of each interaction across the entire dataset.
+
+4. Newer recommender systems that also utilize interaction matrices that could offer a better algorithm that is more easily modifiable than ALS to improve long tail recommendation.
