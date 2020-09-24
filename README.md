@@ -18,7 +18,7 @@ One way to correct for this is to normalize all items by projecting them onto ve
 | ALS            | 97.39%      | 99.27%         | 99.02%       | 93.32%        |
 | Normalized ALS | 98.32%      | 99.43%         | 99.28%       | 96.13%        |
 
-As we can see, both ALS models offer significantly higher performance than the popularity recommendation model. The normalized ALS scores better across the board, with especially large gains in the long tail. The normalized model reduced the remaining error by 35%, indicating that this method holds significant promise with respect to sparse datasets.
+As we can see, both ALS models offer significantly higher performance than the popularity recommendation model. The normalized ALS scores better across the board, with especially large gains in the long tail. The normalized model reduced the remaining overall error by 35% and reduced the remaining long tail error by 42%, indicating that this method holds significant promise with respect to sparse datasets.
 
 ## Areas for Future Research
 
@@ -28,4 +28,6 @@ As we can see, both ALS models offer significantly higher performance than the p
 
 3. Utilizing probabilistic models to determine the significance of each interaction with respect to the popularity of each song and the frequency of each interaction across the entire dataset.
 
-4. Newer recommender systems that also utilize interaction matrices that could offer a better algorithm that is more easily modifiable than ALS to improve long tail recommendation.
+4. Using this code with other datasets and comparing the results.
+
+5. Newer recommender systems that also utilize interaction matrices that could offer a better algorithm that is more easily modifiable than ALS to improve long tail recommendation.
