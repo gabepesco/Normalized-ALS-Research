@@ -96,7 +96,7 @@ def build_files():
     print('Loaded length_normalized_confidence_matrix.')
 
     try:
-        optimal_confidence_matrix = sp.load_npz('data/optimal_confidence_matrix')
+        optimal_confidence_matrix = sp.load_npz('data/optimal_confidence_matrix.npz')
 
     except FileNotFoundError:
         print('Generating optimal_confidence_matrix...')

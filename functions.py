@@ -1,7 +1,11 @@
 import json
+import math
+import random
+
 from tqdm import tqdm
 import scipy.sparse as sp
 import numpy as np
+import implicit
 
 
 def get_filenames():
@@ -35,12 +39,12 @@ def get_dataset_info():
                     track_col_titles.append(full_title)
                     track_col_uris.append(track_uri)
                     i += 1
-    
+
     pl_names_array = np.array(playlist_names).ravel()
     pl_followers_array = np.array(playlist_followers).ravel()
     track_col_uris_array = np.array(track_col_uris).ravel()
     track_col_titles_array = np.array(track_col_titles).ravel()
-    
+
     return unique_track_uris, pl_names_array, pl_followers_array, track_col_uris_array, track_col_titles_array
 
 
@@ -73,7 +77,7 @@ def get_shuffled_data(interaction_matrix, pl_names_array, pl_followers_array):
     shuffled_pl_names_array = pl_names_array[shuffle_inds]
     shuffled_pl_followers_array = pl_followers_array[shuffle_inds]
     shuffled_interaction_matrix = sp.csr_matrix(interaction_matrix)[shuffle_inds, :]
-    
+
     return shuffled_interaction_matrix, shuffled_pl_names_array, shuffled_pl_followers_array
 
 
@@ -110,3 +114,47 @@ def get_optimal_normalized_confidence_matrix(conf_matrix: sp.csr_matrix, followe
     log_followers = np.log(1 + followers).ravel()
 
     return conf_matrix.T.multiply(log_followers).T
+
+
+def get_train_test_masked(matrix: sp.csr_matrix, test_size=1000, percent_mask=.2):
+    m, n = np.shape(matrix)
+    train = matrix[:m - test_size, :]
+    test = matrix[m - test_size:, :]
+
+    # num_mask = (np.array(test.sum(axis=1)) * percent_mask).ravel()
+    # np.ceil(num_mask)
+    build_masked = sp.lil_matrix(np.shape(test))
+
+    for i in tqdm(range(test_size)):
+        playlist = test[i, :].todense()
+
+        one_inds = list(playlist.nonzero()[1])
+        num_to_mask = math.ceil(len(one_inds) * percent_mask)
+
+        mask_inds = random.sample(one_inds, num_to_mask)
+
+        build_masked[i, mask_inds] = 1
+        test[i, mask_inds] = 0
+
+    masked = sp.csr_matrix(build_masked)
+
+    return train, test, masked
+
+
+def get_model(train, alpha, reg, factors=192):
+    model = implicit.als.AlternatingLeastSquares(factors=factors, regularization=reg, calculate_training_loss=True)
+
+    model.fit(train.T * alpha, show_progress=True)
+    return model
+
+
+def test_model(model, test, masked):
+    for i in range(len(test[0])):
+        playlist = test[i, :].todense()
+        zero_inds = np.where(playlist == 0)[1]
+        one_inds = np.where(playlist == 1)[1]
+        masked_playlist = masked[i, zero_inds].todense().ravel()
+        recs = model.recommend(i, test, np.size(masked_playlist), filter_items=one_inds.tolist(),
+                               filter_already_liked_items=False, recalculate_user=True)
+        inds, scores = zip(*recs)
+        sorted_recs = scores[np.argsort(inds)]
