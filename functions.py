@@ -10,26 +10,14 @@ def get_filenames():
     return filenames
 
 
-def get_playlist_followers():
-    filenames = get_filenames()
-    followers = np.zeros(1000000)
-    i = 0
-    for filename in tqdm(filenames):
-        with open(filename) as f:
-            file = json.load(f)
-
-        for playlist in file['playlists']:
-            followers[i] = playlist['num_followers']
-            i += 1
-
-    return followers
-
-
-def get_unique_track_uris():
+def get_dataset_info():
     filenames = get_filenames()
 
-    get_track_uri = lambda track_uri: track_uri[14:]
     unique_track_uris = {}
+    track_col_titles = []
+    track_col_uris = []
+    playlist_names = []
+    playlist_followers = []
     i = 0
 
     for filename in tqdm(filenames):
@@ -37,19 +25,28 @@ def get_unique_track_uris():
             file = json.load(f)
 
         for playlist in file['playlists']:
+            playlist_names.append(playlist['name'])
+            playlist_followers.append(playlist['num_followers'])
             for track in playlist['tracks']:
-                track_uri = get_track_uri(track['track_uri'])
+                track_uri = track['track_uri']
                 if track_uri not in unique_track_uris:
                     unique_track_uris[track_uri] = i
+                    full_title = track['track_name'] + " by " + track['artist_name'] + " on " + track['album_name']
+                    track_col_titles.append(full_title)
+                    track_col_uris.append(track_uri)
                     i += 1
-
-    return unique_track_uris
+    
+    pl_names_array = np.array(playlist_names).ravel()
+    pl_followers_array = np.array(playlist_followers).ravel()
+    track_col_uris_array = np.array(track_col_uris).ravel()
+    track_col_titles_array = np.array(track_col_titles).ravel()
+    
+    return unique_track_uris, pl_names_array, pl_followers_array, track_col_uris_array, track_col_titles_array
 
 
 def get_interaction_matrix(unique_track_uris):
     row, col = [], []
     filenames = get_filenames()
-    get_track_uri = lambda track_uri: track_uri[14:]
 
     for i in tqdm(range(len(filenames))):
         with open(filenames[i]) as f:
@@ -59,14 +56,35 @@ def get_interaction_matrix(unique_track_uris):
             playlist = file['playlists'][j]
             for track in playlist['tracks']:
                 m = i * 1000 + j
-                n = unique_track_uris[get_track_uri(track['track_uri'])]
+                n = unique_track_uris[track['track_uri']]
                 row.append(m)
                 col.append(n)
 
-    interaction_matrix = sp.lil_matrix((len(filenames) * 1000, len(unique_track_uris)))
-    interaction_matrix[row, col] = 1
+    build_matrix = sp.lil_matrix((len(filenames) * 1000, len(unique_track_uris)))
+    build_matrix[row, col] = 1
+    csc_matrix = sp.csc_matrix(build_matrix)
 
-    return sp.csr_matrix(interaction_matrix)
+    return csc_matrix
+
+
+def get_shuffled_data(interaction_matrix, pl_names_array, pl_followers_array):
+    shuffle_inds = np.arange(np.shape(interaction_matrix)[0])
+    np.random.shuffle(shuffle_inds)
+    shuffled_pl_names_array = pl_names_array[shuffle_inds]
+    shuffled_pl_followers_array = pl_followers_array[shuffle_inds]
+    shuffled_interaction_matrix = sp.csr_matrix(interaction_matrix)[shuffle_inds, :]
+    
+    return shuffled_interaction_matrix, shuffled_pl_names_array, shuffled_pl_followers_array
+
+
+def get_sorted_data(interaction_matrix, track_col_uris_array, track_col_titles_array):
+    pops = np.array(interaction_matrix.sum(axis=0)).ravel()
+    sortIndices = np.flip(np.argsort(pops))
+
+    csr_matrix = sp.csr_matrix(interaction_matrix[:, sortIndices])
+    sorted_uris = track_col_uris_array[sortIndices]
+    sorted_titles = track_col_titles_array[sortIndices]
+    return csr_matrix, sorted_uris, sorted_titles
 
 
 def get_bm25_confidence_matrix(interaction_matrix: sp.csr_matrix):
