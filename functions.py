@@ -109,7 +109,8 @@ def get_length_normalized_confidence_matrix(interaction_matrix: sp.csr_matrix, c
     avg_playlist_length = np.sum(playlist_lengths) / m
     log_lengths = np.log(1 + avg_playlist_length / playlist_lengths)
 
-    matrix = sp.casr_matrix(conf_matrix.T.multiply(log_lengths).T)
+    matrix = sp.csr_matrix(conf_matrix.T.multiply(log_lengths).T)
+
     return matrix
 
 
@@ -166,62 +167,134 @@ def get_model(train, alpha, reg, factors=192):
     return model
 
 
-def get_recs(model, test):
-    sorted_recs = []
-    m, n = np.shape(test)
+def score_model(model, test: sp.csr_matrix, masked, sh, mb):
+    # test is missing songs
+    # masked are the songs that test is missing
 
-    for i in tqdm(range(m)):
-        recs = model.recommend(userid=i, user_items=test, N=n - test[i, :].count_nonzero())
-        inds, scores = zip(*recs)
-        inds, scores = np.array(inds), np.array(scores)
-        sorted_recs.append(scores[np.argsort(inds)])
-
-    return sorted_recs
-
-
-def get_scores(masked, recs, sh, mb):
     auc = []
     sh_auc = []
     mb_auc = []
     lt_auc = []
+    m, n = np.shape(test)
 
-    iters = np.shape(masked)[0]
-    for i in tqdm(range(iters)):
-        pl = np.array(masked[i, :]).ravel()
+    for i in tqdm(range(25)):
+        # nonzero_inds = test[i, :].nonzero
+        # print(np.shape(nonzero_inds))
+        # zero_inds = np.where(test[i, :].todense() == 0)[1]
+        # pl = masked[i, zero_inds].todense().ravel()
+        # print("pl:", np.shape(pl))
 
-        sh_pl = np.copy(pl)
-        sh_pl[sh:] = 0
+        playlist = test[i, :].todense()
 
-        mb_pl = np.copy(pl)
-        mb_pl[:sh] = 0
-        mb_pl[mb:] = 0
+        # indices where we have 1s and 0s in the playlist
+        zero_inds = np.where(playlist == 0)[1]
+        nonzero_inds = np.where(playlist != 0)[1]
 
-        lt_pl = np.copy(pl)
-        lt_pl[:mb] = 0
+        # make a vector of true values to identify
+        true_labels = np.ravel(masked[i, zero_inds].todense())
+        inds, scores = zip(*model.recommend(userid=i,
+                                            user_items=test,
+                                            N=np.size(true_labels),
+                                            filter_items=nonzero_inds.tolist(),
+                                            filter_already_liked_items=False))
+
+        inds, scores = np.array(inds), np.array(scores)
+        recs = scores[np.argsort(inds)]
+
+        sh_labels = np.copy(true_labels)
+        sh_labels[sh:] = 0
+
+        mb_labels = np.copy(true_labels)
+        mb_labels[:sh] = 0
+        mb_labels[mb:] = 0
+
+        lt_labels = np.copy(true_labels)
+        lt_labels[:mb] = 0
 
         try:
-            auc.append(metrics.roc_auc_score(pl, recs[i]))
+            auc.append(metrics.roc_auc_score(true_labels, recs))
+        except:
+            print("auc fail:", np.shape(true_labels), np.shape(recs))
+
+        try:
+            sh_auc.append(metrics.roc_auc_score(sh_labels, recs))
         except:
             pass
 
         try:
-            sh_auc.append(metrics.roc_auc_score(sh_pl, recs[i]))
+            mb_auc.append(metrics.roc_auc_score(mb_labels, recs))
         except:
             pass
 
         try:
-            mb_auc.append(metrics.roc_auc_score(mb_pl, recs[i]))
+            lt_auc.append(metrics.roc_auc_score(lt_labels, recs))
         except:
             pass
 
-        try:
-            lt_auc.append(metrics.roc_auc_score(lt_pl, recs[i]))
-        except:
-            pass
-    avg = lambda l: sum(l)/len(l)
-    print('auc:', avg(auc))
-    print('sh_auc:', avg(sh_auc))
-    print('mb_auc:', avg(mb_auc))
-    print('lt_auc:', avg(lt_auc))
+    avg = lambda l: sum(l) / len(l)
+    print('auc:', avg(auc), len(auc))
+    print('sh_auc:', avg(sh_auc), len(sh_auc))
+    print('mb_auc:', avg(mb_auc), len(mb_auc))
+    print('lt_auc:', avg(lt_auc), len(lt_auc))
 
     return auc, sh_auc, mb_auc, lt_auc
+
+# def get_recs(model, test):
+#     sorted_recs = []
+#     m, n = np.shape(test)
+#
+#     for i in tqdm(range(m)):
+#         recs = model.recommend(userid=i, user_items=test, N=n - test[i, :].count_nonzero())
+#         inds, scores = zip(*recs)
+#         inds, scores = np.array(inds), np.array(scores)
+#         sorted_recs.append(scores[np.argsort(inds)])
+#
+#     return sorted_recs
+#
+#
+# def get_scores(masked, recs, sh, mb):
+#     auc = []
+#     sh_auc = []
+#     mb_auc = []
+#     lt_auc = []
+#
+#     iters = np.shape(masked)[0]
+#     for i in tqdm(range(iters)):
+#         pl = np.array(masked[i, :]).ravel()
+#
+#         sh_pl = np.copy(pl)
+#         sh_pl[sh:] = 0
+#
+#         mb_pl = np.copy(pl)
+#         mb_pl[:sh] = 0
+#         mb_pl[mb:] = 0
+#
+#         lt_pl = np.copy(pl)
+#         lt_pl[:mb] = 0
+#
+#         try:
+#             auc.append(metrics.roc_auc_score(pl, recs[i]))
+#         except:
+#             pass
+#
+#         try:
+#             sh_auc.append(metrics.roc_auc_score(sh_pl, recs[i]))
+#         except:
+#             pass
+#
+#         try:
+#             mb_auc.append(metrics.roc_auc_score(mb_pl, recs[i]))
+#         except:
+#             pass
+#
+#         try:
+#             lt_auc.append(metrics.roc_auc_score(lt_pl, recs[i]))
+#         except:
+#             pass
+#     avg = lambda l: sum(l)/len(l)
+#     print('auc:', avg(auc))
+#     print('sh_auc:', avg(sh_auc))
+#     print('mb_auc:', avg(mb_auc))
+#     print('lt_auc:', avg(lt_auc))
+#
+#     return auc, sh_auc, mb_auc, lt_auc
