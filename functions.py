@@ -129,10 +129,12 @@ def get_sh_mb(matrix):
     cutoff = total / 3
     while current_total < cutoff:
         current_total += pops[i]
+        i += 1
     sh = i
     current_total = 0
     while current_total < cutoff:
         current_total += pops[i]
+        i += 1
     mb = i
     return sh, mb
 
