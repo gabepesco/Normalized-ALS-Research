@@ -40,8 +40,8 @@ def build_files():
 
     try:
         shuffled_interaction_matrix = sp.load_npz('data/shuffled_interaction_matrix.npz')
-        shuffled_pl_names_array = np.load('data/shuffled_pl_names_array', allow_pickle=True)
-        shuffled_pl_followers_array = np.load('data/shuffled_pl_followers_array', allow_pickle=True)
+        shuffled_pl_names_array = np.load('data/shuffled_pl_names_array.npy', allow_pickle=True)
+        shuffled_pl_followers_array = np.load('data/shuffled_pl_followers_array.npy', allow_pickle=True)
 
     except FileNotFoundError:
         print('Generating shuffled data...')
@@ -56,8 +56,8 @@ def build_files():
 
     try:
         sorted_interaction_matrix = sp.load_npz('data/sorted_interaction_matrix.npz')
-        sorted_track_col_uris_array = np.load('data/sorted_track_col_uris_array', allow_pickle=True)
-        sorted_track_col_titles_array = np.load('data/sorted_track_col_titles_array', allow_pickle=True)
+        sorted_track_col_uris_array = np.load('data/sorted_track_col_uris_array.npy', allow_pickle=True)
+        sorted_track_col_titles_array = np.load('data/sorted_track_col_titles_array.npy', allow_pickle=True)
 
     except FileNotFoundError:
         print("Generating sorted data...")
