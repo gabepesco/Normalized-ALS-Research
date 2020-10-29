@@ -1,109 +1,45 @@
-import json
-import functions
+import parsefunctions
 import numpy as np
 import scipy.sparse as sp
 
 
 def build_files():
-    try:
-        with open('data/unique_track_uris.json') as f:
-            unique_track_uris = json.load(f)
-        pl_names_array = np.load('data/pl_names_array.npy', allow_pickle=True)
-        pl_followers_array = np.load('data/pl_followers_array.npy', allow_pickle=True)
-        track_col_uris_array = np.load('data/track_col_uris_array.npy', allow_pickle=True)
-        track_col_titles_array = np.load('data/track_col_titles_array.npy', allow_pickle=True)
 
-    except FileNotFoundError:
-        print('Getting dataset info...')
-        unique_track_uris, pl_names_array, pl_followers_array, track_col_uris_array, track_col_titles_array = \
-            functions.get_dataset_info()
-
-        with open('data/unique_track_uris.json', 'w') as w:
-            json.dump(unique_track_uris, w)
-        np.save('data/pl_names_array.npy', pl_names_array, allow_pickle=True, fix_imports=False)
-        np.save('data/pl_followers_array.npy', pl_followers_array, allow_pickle=True, fix_imports=False)
-        np.save('data/track_col_uris_array.npy', track_col_uris_array, allow_pickle=True, fix_imports=False)
-        np.save('data/track_col_titles_array.npy', track_col_titles_array, allow_pickle=True, fix_imports=False)
-
+    pl_names, pl_followers, track_uris, track_titles = parsefunctions.get_dataset_info()
     print('Loaded info.')
 
-    try:
-        interaction_matrix = sp.load_npz('data/interaction_matrix.npz')
+    pref_matrix = parsefunctions.get_pref_matrix(track_uris)
+    print('Loaded pref_matrix.')
 
-    except FileNotFoundError:
-        print('Generating interaction_matrix...')
-        interaction_matrix = functions.get_interaction_matrix(unique_track_uris)
+    print('Generating shuffled data...')
+    shuffled_pref_matrix, shuffled_pl_names, shuffled_pl_followers = parsefunctions.get_shuffled_data(pref_matrix, pl_names, pl_followers)
 
-        sp.save_npz('data/interaction_matrix.npz', interaction_matrix, compressed=True)
+    np.save('data/pl_names.npy', shuffled_pl_names, allow_pickle=True, fix_imports=False)
+    np.save('data/pl_followers.npy', shuffled_pl_followers, allow_pickle=True, fix_imports=False)
+    print('Saved column data.')
 
-    print('Loaded interaction_matrix.')
+    print("Generating sorted data...")
+    sorted_pref_matrix, sorted_track_uris, sorted_track_titles = parsefunctions.get_sorted_data(shuffled_pref_matrix, track_uris, track_titles)
 
-    try:
-        shuffled_interaction_matrix = sp.load_npz('data/shuffled_interaction_matrix.npz')
-        shuffled_pl_names_array = np.load('data/shuffled_pl_names_array.npy', allow_pickle=True)
-        shuffled_pl_followers_array = np.load('data/shuffled_pl_followers_array.npy', allow_pickle=True)
+    sp.save_npz('data/pref_matrix.npz', sorted_pref_matrix, compressed=True)
+    np.save('data/track_uris.npy', sorted_track_uris, allow_pickle=True, fix_imports=False)
+    np.save('data/track_titles.npy', sorted_track_titles, allow_pickle=True, fix_imports=False)
+    print('Saved sorted data.')
 
-    except FileNotFoundError:
-        print('Generating shuffled data...')
-        shuffled_interaction_matrix, shuffled_pl_names_array, shuffled_pl_followers_array = \
-            functions.get_shuffled_data(interaction_matrix, pl_names_array, pl_followers_array)
+    print("Generating bm25_conf_matrix...")
+    bm25_conf_matrix = parsefunctions.get_bm25_conf_matrix(sorted_pref_matrix)
+    sp.save_npz('data/bm25_conf_matrix.npz', bm25_conf_matrix, compressed=True)
+    print('Saved bm25_conf_matrix.')
 
-        sp.save_npz('data/interaction_matrix.npz', interaction_matrix, compressed=True)
-        np.save('data/shuffled_pl_names_array.npy', pl_names_array, allow_pickle=True, fix_imports=False)
-        np.save('data/shuffled_pl_followers_array.npy', pl_names_array, allow_pickle=True, fix_imports=False)
+    print('Generating tfidf_conf_matrix...')
+    tfidf_conf_matrix = parsefunctions.get_tfidf_conf_matrix(sorted_pref_matrix)
+    sp.save_npz('data/tfidf_conf_matrix.npz', tfidf_conf_matrix, compressed=True)
+    print('Saved tfidf_conf_matrix.')
 
-    print('Loaded shuffled data.')
-
-    try:
-        sorted_interaction_matrix = sp.load_npz('data/sorted_interaction_matrix.npz')
-        sorted_track_col_uris_array = np.load('data/sorted_track_col_uris_array.npy', allow_pickle=True)
-        sorted_track_col_titles_array = np.load('data/sorted_track_col_titles_array.npy', allow_pickle=True)
-
-    except FileNotFoundError:
-        print("Generating sorted data...")
-        sorted_interaction_matrix, sorted_track_col_uris_array, sorted_track_col_titles_array = \
-            functions.get_sorted_data(shuffled_interaction_matrix, track_col_uris_array, track_col_titles_array)
-
-        sp.save_npz('data/sorted_interaction_matrix.npz', sorted_interaction_matrix, compressed=True)
-        np.save('data/sorted_track_col_uris_array.npy', sorted_track_col_uris_array, allow_pickle=True,
-                fix_imports=False)
-        np.save('data/sorted_track_col_titles_array.npy', sorted_track_col_titles_array, allow_pickle=True,
-                fix_imports=False)
-
-    print('Loaded sorted data.')
-
-    try:
-        bm25_confidence_matrix = sp.load_npz('data/bm25_confidence_matrix.npz')
-
-    except FileNotFoundError:
-        print('Generating bm_25_confidence_matrix...')
-        bm25_confidence_matrix = functions.get_bm25_confidence_matrix(sorted_interaction_matrix)
-        sp.save_npz('data/bm25_confidence_matrix.npz', bm25_confidence_matrix, compressed=True)
-
-    print('Loaded bm_25_confidence_matrix.')
-
-    try:
-        length_normalized_confidence_matrix = sp.load_npz('data/length_normalized_confidence_matrix.npz')
-
-    except FileNotFoundError:
-        print('Generating length_normalized_confidence_matrix...')
-        length_normalized_confidence_matrix = functions.get_length_normalized_confidence_matrix(
-            sorted_interaction_matrix, bm25_confidence_matrix)
-
-        sp.save_npz('data/length_normalized_confidence_matrix.npz', length_normalized_confidence_matrix,
-                    compressed=True)
-
-    print('Loaded length_normalized_confidence_matrix.')
-
-    try:
-        optimal_confidence_matrix = sp.load_npz('data/optimal_confidence_matrix.npz')
-
-    except FileNotFoundError:
-        print('Generating optimal_confidence_matrix...')
-        optimal_confidence_matrix = functions.get_optimal_normalized_confidence_matrix(
-            length_normalized_confidence_matrix, shuffled_pl_followers_array)
-
-        sp.save_npz('data/optimal_confidence_matrix.npz', optimal_confidence_matrix, compressed=True)
+    print('Generating optimized_conf_matrix...')
+    optimized_conf_matrix = parsefunctions.get_optimized_conf_matrix(shuffled_pref_matrix, bm25_conf_matrix, shuffled_pl_followers)
+    sp.save_npz('data/optimized_conf_matrix.npz', optimized_conf_matrix, compressed=True)
+    print('Saved optimized_conf_matrix.')
 
     print("All data generated.")
     return
