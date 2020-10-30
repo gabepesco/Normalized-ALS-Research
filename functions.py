@@ -64,7 +64,7 @@ def score_model(model, test: sp.csr_matrix, masked, sh, mb):
     mb_auc = []
     lt_auc = []
 
-    for i in tqdm(range(100)):
+    for i in tqdm(range(1000)):
         # nonzero_indices = test[i, :].nonzero
         # print(np.shape(nonzero_indices))
         # zero_indices = np.where(test[i, :].todense() == 0)[1]
@@ -83,7 +83,8 @@ def score_model(model, test: sp.csr_matrix, masked, sh, mb):
                                                user_items=test,
                                                N=np.size(true_labels),
                                                filter_items=nonzero_indices.tolist(),
-                                               filter_already_liked_items=False))
+                                               filter_already_liked_items=False,
+                                               recalculate_user=True))
 
         indices, scores = np.array(indices), np.array(scores)
         recs = scores[np.argsort(indices)]
@@ -124,4 +125,4 @@ def score_model(model, test: sp.csr_matrix, masked, sh, mb):
     print('mb_auc:', avg(mb_auc), len(mb_auc))
     print('lt_auc:', avg(lt_auc), len(lt_auc))
 
-    return auc, sh_auc, mb_auc, lt_auc
+    return avg(auc), avg(sh_auc), avg(mb_auc), avg(lt_auc)
