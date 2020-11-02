@@ -36,6 +36,12 @@ def build_files():
     sp.save_npz('data/tfidf_conf_matrix.npz', tfidf_conf_matrix, compressed=True)
     print('Saved tfidf_conf_matrix.')
 
+    sorted_pref_matrix = sp.load_npz('data/pref_matrix.npz')
+    print('Generating bm25_len_norm_conf_matrix...')
+    bm25_len_norm_conf_matrix = parsefunctions.get_bm25_len_norm_conf_matrix(sorted_pref_matrix)
+    sp.save_npz('data/bm25_len_norm_conf_matrix.npz', bm25_len_norm_conf_matrix, compressed=True)
+    print('Saved bm25_len_norm_conf_matrix.')
+
     print('Generating optimized_conf_matrix...')
     optimized_conf_matrix = parsefunctions.get_optimized_conf_matrix(shuffled_pref_matrix, bm25_conf_matrix, shuffled_pl_followers)
     sp.save_npz('data/optimized_conf_matrix.npz', optimized_conf_matrix, compressed=True)

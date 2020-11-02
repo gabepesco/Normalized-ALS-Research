@@ -5,37 +5,50 @@ import pickle
 import csv
 
 def main():
-    int_matrix = sp.load_npz('data/pref_matrix.npz')
-    sh, mb = functions.get_sh_mb(int_matrix)
-    # total_interactions = int_matrix.sum()
-    del int_matrix
+    # set these!
+    matrix_name = "bm25_len_norm_conf"
+    save_model = True
 
-
-    matrix_name = "pref"
     matrix_filename = f'data/{matrix_name}_matrix.npz'
     matrix = sp.load_npz(matrix_filename)
-    train, test, masked = functions.get_train_test_masked(matrix)
+    ratio = 65464776.0 / matrix.sum()  # total interactions
+
+    alpha, reg, factors = round(3360 * ratio), 1.19, 128
+
+    # set this to true if you want to save the model
+    print(f'matrix: {matrix_name}, alpha: {alpha}, reg: {reg}, factors: {factors}')
 
     os.environ['MKL_NUM_THREADS'] = '1'
+    os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
+    sh, mb = 2641, 22530
 
-    for a in (128, 256, 512):
-        alpha, reg, factors = a, .25, 128
-        model_name = f'data/models/{matrix_name}_a{alpha}_r{reg}_f{factors}_model.pickle'
+    train, test, masked = functions.get_train_test_masked(matrix)
 
-        try:
-            with open(model_name, "rb") as input_file:
-                model = pickle.load(input_file)
+    print(f'alpha: {alpha}, reg: {reg}, factors: {factors}')
+    model_name = f'data/models/{matrix_name}_a{alpha}_r{reg}_f{factors}_model.pickle'
 
-        except FileNotFoundError:
-            model = functions.get_model(train, alpha=alpha, reg=reg, factors=factors)
-            with open(model_name, 'wb') as output_file:
-                pickle.dump(model, output_file)
+    try:
+        with open(model_name, "rb") as input_file:
+            model = pickle.load(input_file)
 
-        auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
-        results = [matrix_name, alpha, reg, factors, auc, sh_auc, mb_auc, lt_auc]
-        with open('data/results.csv', 'a') as result_file:
-            wr = csv.writer(result_file, dialect='excel')
-            wr.writerow(results)
+    except FileNotFoundError:
+        model = functions.get_model(train, alpha=alpha, reg=reg, factors=factors)
+
+        if save_model:
+            try:
+                with open(model_name, 'wb') as output_file:
+                    pickle.dump(model, output_file)
+            except FileNotFoundError:
+                os.mkdir('data/models')
+                with open(model_name, 'wb') as output_file:
+                    pickle.dump(model, output_file)
+    del train
+
+    auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
+    results = [matrix_name, alpha, reg, factors, auc, sh_auc, mb_auc, lt_auc]
+    with open('data/results.csv', 'a') as result_file:
+        wr = csv.writer(result_file, dialect='excel')
+        wr.writerow(results)
 
 
 main()

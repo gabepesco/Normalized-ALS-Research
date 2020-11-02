@@ -72,6 +72,8 @@ def get_pref_matrix(track_uris):
 
 
 def get_shuffled_data(pref_matrix, pl_names_array, pl_followers_array):
+    # shuffle order of playlists (rows), maintain in pl data arrays
+
     shuffle_indices = np.arange(np.shape(pref_matrix)[0])
     np.random.shuffle(shuffle_indices)
 
@@ -83,6 +85,8 @@ def get_shuffled_data(pref_matrix, pl_names_array, pl_followers_array):
 
 
 def get_sorted_data(pref_matrix: sp.csr_matrix, track_uris, track_titles):
+    # sort columns by track popularity, maintain in names and freqs
+
     pops = np.array(pref_matrix.sum(axis=0)).ravel()
     sort_indices = np.flip(np.argsort(pops))
 
@@ -115,6 +119,22 @@ def get_bm25_conf_matrix(pref_matrix: sp.csr_matrix):
     matrix = sp.csr_matrix(matrix_copy.multiply(inv_doc_freq))
 
     return matrix
+
+
+def get_bm25_len_norm_conf_matrix(pref_matrix: sp.csr_matrix):
+    m, n = np.shape(pref_matrix)
+
+    popularity = np.array(pref_matrix.sum(axis=0)).ravel()
+    inv_doc_freq = np.log((m - popularity + 0.5) / popularity + 0.5)
+
+    playlist_lengths = np.array(pref_matrix.sum(axis=1)).ravel()
+    avg_playlist_length = np.sum(playlist_lengths) / m
+    log_lengths = np.log(1 + avg_playlist_length / playlist_lengths)
+
+    matrix_copy = pref_matrix.copy()
+    matrix = matrix_copy.multiply(inv_doc_freq).T.multiply(log_lengths).T
+
+    return sp.csr_matrix(matrix)
 
 
 def get_optimized_conf_matrix(pref_matrix: sp.csr_matrix, bm25_conf_matrix: sp.csr_matrix, followers):
