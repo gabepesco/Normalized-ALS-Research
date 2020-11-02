@@ -25,7 +25,7 @@ def get_sh_mb(matrix):
     return sh, mb
 
 
-def get_train_test_masked(matrix: sp.csr_matrix, test_size=1000, percent_mask=.2):
+def get_train_test_masked(matrix: sp.csr_matrix, test_size=1000, percent_mask=.4):
     m, n = np.shape(matrix)
     train = matrix[:m - test_size, :]
     test = matrix[m - test_size:, :]
@@ -33,13 +33,16 @@ def get_train_test_masked(matrix: sp.csr_matrix, test_size=1000, percent_mask=.2
     build_masked = sp.lil_matrix(np.shape(test))
 
     for i in tqdm(range(test_size)):
-        playlist = test[i, :].todense()
+        # get all indices from the test playlist where there are 1s, make a list, get 20% of them =
 
-        one_indices = list(playlist.nonzero()[1])
-        num_to_mask = math.ceil(len(one_indices) * percent_mask)
+        playlist = test[i, :]
 
-        mask_indices = random.sample(one_indices, num_to_mask)
+        nonzero_indices = playlist.nonzero()[1]
+        num_to_mask = math.ceil(len(nonzero_indices) * percent_mask)
 
+        mask_indices = random.sample(nonzero_indices, num_to_mask)
+
+        # zero out the masked songs
         build_masked[i, mask_indices] = 1
         test[i, mask_indices] = 0
 
@@ -49,20 +52,38 @@ def get_train_test_masked(matrix: sp.csr_matrix, test_size=1000, percent_mask=.2
 
 
 def get_model(train, alpha, reg, factors=192):
+    # creates and trains the model
+
     model = implicit.als.AlternatingLeastSquares(factors=factors, regularization=reg, calculate_training_loss=True)
     model.fit(train.T * alpha, show_progress=True)
 
     return model
 
 
+def calc_pop_gap(pl, recs, pops):
+    n = len(pl)
+    pl_total_pop = pops[pl].sum()
+    pl_avg_pop = pl_total_pop / n
+
+    rec_total_pop = recs[pl].sum()
+    rec_avg_pop = rec_total_pop / n
+
+    return rec_avg_pop / pl_avg_pop
+
+
 def score_model(model, test: sp.csr_matrix, masked, sh, mb):
     # test has some songs replaced with 0s
     # masked are the songs that test is missing
+    pref = sp.load_npz('data/pref_matrix.npz')
+    pops = np.array(pref.sum(axis=0)).ravel()
+    np.save('data/pops.npy', pops, allow_pickle=True, fix_imports=False)
+    del pref
 
     auc = []
     sh_auc = []
     mb_auc = []
     lt_auc = []
+    pop_gaps = []
 
     for i in tqdm(range(1000)):
         # nonzero_indices = test[i, :].nonzero
@@ -75,16 +96,23 @@ def score_model(model, test: sp.csr_matrix, masked, sh, mb):
 
         # indices where we have 1s and 0s in the playlist
         zero_indices = np.where(playlist == 0)[1]
-        nonzero_indices = np.where(playlist != 0)[1]
+        nonzero_indices = np.where(playlist != 0)[1].tolist()
 
         # make a vector of true values to identify
         true_labels = np.ravel(masked[i, zero_indices].todense())
-        indices, scores = zip(*model.recommend(userid=i,
-                                               user_items=test,
-                                               N=np.size(true_labels),
-                                               filter_items=nonzero_indices.tolist(),
-                                               filter_already_liked_items=False,
-                                               recalculate_user=True))
+        recommendations = model.recommend(userid=i,
+                                          user_items=test,
+                                          N=np.size(true_labels),
+                                          filter_items=nonzero_indices,
+                                          filter_already_liked_items=False,
+                                          recalculate_user=True)
+
+        indices, scores = zip(*recommendations)
+        print(indices[:10])
+        pl_len = len(nonzero_indices)
+        pop_gap = calc_pop_gap(nonzero_indices, indices[:pl_len], pops)
+        print(pop_gap)
+        pop_gaps.append(pop_gap)
 
         indices, scores = np.array(indices), np.array(scores)
         recs = scores[np.argsort(indices)]
