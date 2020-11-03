@@ -5,6 +5,7 @@ import numpy as np
 
 
 def get_filenames():
+    # generates list of filenames for files in the dataset
     get_slice_filename = lambda n: 'mpd/data/mpd.slice.' + str(n * 1000) + "-" + str(n * 1000 + 999) + '.json'
     filenames = [get_slice_filename(i) for i in range(1000)]
     return filenames

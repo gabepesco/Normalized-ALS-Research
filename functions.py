@@ -40,7 +40,7 @@ def get_train_test_masked(matrix: sp.csr_matrix, test_size=1000, percent_mask=.4
         nonzero_indices = playlist.nonzero()[1]
         num_to_mask = math.ceil(len(nonzero_indices) * percent_mask)
 
-        mask_indices = random.sample(nonzero_indices, num_to_mask)
+        mask_indices = random.sample(nonzero_indices.tolist(), num_to_mask)
 
         # zero out the masked songs
         build_masked[i, mask_indices] = 1
@@ -53,31 +53,26 @@ def get_train_test_masked(matrix: sp.csr_matrix, test_size=1000, percent_mask=.4
 
 def get_model(train, alpha, reg, factors=192):
     # creates and trains the model
-
     model = implicit.als.AlternatingLeastSquares(factors=factors, regularization=reg, calculate_training_loss=True)
     model.fit(train.T * alpha, show_progress=True)
 
     return model
 
 
-def calc_pop_gap(pl, recs, pops):
-    n = len(pl)
-    pl_total_pop = pops[pl].sum()
-    pl_avg_pop = pl_total_pop / n
-
-    rec_total_pop = recs[pl].sum()
-    rec_avg_pop = rec_total_pop / n
-
-    return rec_avg_pop / pl_avg_pop
-
-
 def score_model(model, test: sp.csr_matrix, masked, sh, mb):
-    # test has some songs replaced with 0s
+    # test is playlists with some songs removed
     # masked are the songs that test is missing
-    pref = sp.load_npz('data/pref_matrix.npz')
-    pops = np.array(pref.sum(axis=0)).ravel()
-    np.save('data/pops.npy', pops, allow_pickle=True, fix_imports=False)
-    del pref
+
+    try:
+        pops = np.load('data/pops.npy')
+    except FileNotFoundError:
+        pref = sp.load_npz('data/pref_matrix.npz')
+        pops = np.array(pref.sum(axis=0)).ravel()
+        np.save('data/pops.npy', pops, allow_pickle=True, fix_imports=False)
+        del pref
+
+    n = pops.shape[0]
+    all_indices = np.arange(n)
 
     auc = []
     sh_auc = []
@@ -86,71 +81,65 @@ def score_model(model, test: sp.csr_matrix, masked, sh, mb):
     pop_gaps = []
 
     for i in tqdm(range(1000)):
-        # nonzero_indices = test[i, :].nonzero
-        # print(np.shape(nonzero_indices))
-        # zero_indices = np.where(test[i, :].todense() == 0)[1]
-        # pl = masked[i, zero_indices].todense().ravel()
-        # print("pl:", np.shape(pl))
-
-        playlist = test[i, :].todense()
-
         # indices where we have 1s and 0s in the playlist
-        zero_indices = np.where(playlist == 0)[1]
-        nonzero_indices = np.where(playlist != 0)[1].tolist()
+        nonzero_indices = test[i, :].nonzero()[1]
+        zero_indices = np.delete(all_indices, nonzero_indices)
 
-        # make a vector of true values to identify
-        true_labels = np.ravel(masked[i, zero_indices].todense())
         recommendations = model.recommend(userid=i,
                                           user_items=test,
-                                          N=np.size(true_labels),
-                                          filter_items=nonzero_indices,
+                                          N=n - len(nonzero_indices),
+                                          filter_items=nonzero_indices.tolist(),
                                           filter_already_liked_items=False,
                                           recalculate_user=True)
 
         indices, scores = zip(*recommendations)
-        print(indices[:10])
-        pl_len = len(nonzero_indices)
-        pop_gap = calc_pop_gap(nonzero_indices, indices[:pl_len], pops)
-        print(pop_gap)
-        pop_gaps.append(pop_gap)
-
         indices, scores = np.array(indices), np.array(scores)
+
+        # get average popularity of songs in playlist
+        pl_avg_pop = pops[nonzero_indices].sum() / nonzero_indices.shape[0]
+        # get average popularity of top 10 recommendations
+        rec_avg_pop = pops[indices[:10]].sum() / 10
+        # calculate the popularity gap
+        pop_gaps.append((rec_avg_pop - pl_avg_pop) / pl_avg_pop)
+
+        # get a vector of scores for each song
         recs = scores[np.argsort(indices)]
 
-        sh_labels = np.copy(true_labels)
-        sh_labels[sh:] = 0
+        # get a vector of the missing songs
+        true_labels = masked[i, zero_indices].toarray().ravel()
 
-        mb_labels = np.copy(true_labels)
-        mb_labels[:sh] = 0
-        mb_labels[mb:] = 0
+        # locations where the missing songs are
+        true_inds = masked[i, zero_indices].nonzero()[1]
 
-        lt_labels = np.copy(true_labels)
-        lt_labels[:mb] = 0
+        #add overall roc_auc_score
+        auc.append(metrics.roc_auc_score(true_labels, recs))
+
+        true_labels[true_inds[true_inds >= sh]] = 0
+        try:
+            sh_auc.append(metrics.roc_auc_score(true_labels, recs))
+        except:
+            pass
+        true_labels[true_inds] = 1
+        true_labels[true_inds[true_inds < sh]] = 0
+        true_labels[true_inds[true_inds > mb]] = 0
 
         try:
-            auc.append(metrics.roc_auc_score(true_labels, recs))
+            mb_auc.append(metrics.roc_auc_score(true_labels, recs))
         except:
             pass
 
+        true_labels[true_inds] = 1
+        true_labels[true_inds[true_inds < mb]] = 0
         try:
-            sh_auc.append(metrics.roc_auc_score(sh_labels, recs))
-        except:
-            pass
-
-        try:
-            mb_auc.append(metrics.roc_auc_score(mb_labels, recs))
-        except:
-            pass
-
-        try:
-            lt_auc.append(metrics.roc_auc_score(lt_labels, recs))
+            lt_auc.append(metrics.roc_auc_score(true_labels, recs))
         except:
             pass
 
     avg = lambda l: sum(l) / len(l)
+    print("pop_gaps:", avg(pop_gaps), len(pop_gaps))
     print('auc:', avg(auc), len(auc))
     print('sh_auc:', avg(sh_auc), len(sh_auc))
     print('mb_auc:', avg(mb_auc), len(mb_auc))
     print('lt_auc:', avg(lt_auc), len(lt_auc))
 
-    return avg(auc), avg(sh_auc), avg(mb_auc), avg(lt_auc)
+    return avg(pop_gaps), avg(auc), avg(sh_auc), avg(mb_auc), avg(lt_auc)

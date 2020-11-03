@@ -4,6 +4,7 @@ import functions
 import pickle
 import csv
 
+
 def main():
     # set these!
     matrix_name = "bm25_len_norm_conf"
@@ -44,8 +45,8 @@ def main():
                     pickle.dump(model, output_file)
     del train
 
-    auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
-    results = [matrix_name, alpha, reg, factors, auc, sh_auc, mb_auc, lt_auc]
+    pgap, auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
+    results = [matrix_name, alpha, reg, factors, pgap, auc, sh_auc, mb_auc, lt_auc]
     with open('data/results.csv', 'a') as result_file:
         wr = csv.writer(result_file, dialect='excel')
         wr.writerow(results)
