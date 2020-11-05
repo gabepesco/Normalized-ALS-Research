@@ -32,7 +32,7 @@ def get_train_test_masked(matrix: sp.csr_matrix, test_size=1000, percent_mask=.4
 
     build_masked = sp.lil_matrix(np.shape(test))
 
-    for i in tqdm(range(test_size)):
+    for i in range(test_size):
         # get all indices from the test playlist where there are 1s, make a list, get 20% of them =
 
         playlist = test[i, :]
@@ -64,11 +64,11 @@ def score_model(model, test: sp.csr_matrix, masked, sh, mb):
     # masked are the songs that test is missing
 
     try:
-        pops = np.load('data/pops.npy')
+        pops = np.load('data/bookkeeping/pops.npy')
     except FileNotFoundError:
-        pref = sp.load_npz('data/pref_matrix.npz')
+        pref = sp.load_npz('data/matrices/pref_matrix.npz')
         pops = np.array(pref.sum(axis=0)).ravel()
-        np.save('data/pops.npy', pops, allow_pickle=True, fix_imports=False)
+        np.save('data/bookkeeping/pops.npy', pops, allow_pickle=True, fix_imports=False)
         del pref
 
     n = pops.shape[0]

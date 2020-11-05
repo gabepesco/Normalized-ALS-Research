@@ -7,14 +7,15 @@ import csv
 
 def main():
     # set these!
-    matrix_name = "bm25_len_norm_conf"
+    matrix_name = "reciprocal_pop_conf"
     save_model = True
 
-    matrix_filename = f'data/{matrix_name}_matrix.npz'
+    matrix_filename = f'data/matrices/{matrix_name}_matrix.npz'
     matrix = sp.load_npz(matrix_filename)
-    ratio = 65464776.0 / matrix.sum()  # total interactions
+    # ratio = 65464776.0 / matrix.sum()  # total interactions
 
-    alpha, reg, factors = round(3360 * ratio), 1.19, 128
+    # alpha, reg, factors = round(3360 * ratio)/40, 1.19, 128
+    alpha, reg, factors = 10748, 4, 128
 
     # set this to true if you want to save the model
     print(f'matrix: {matrix_name}, alpha: {alpha}, reg: {reg}, factors: {factors}')
@@ -45,8 +46,8 @@ def main():
                     pickle.dump(model, output_file)
     del train
 
-    pgap, auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
-    results = [matrix_name, alpha, reg, factors, pgap, auc, sh_auc, mb_auc, lt_auc]
+    pop_gap, auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
+    results = [matrix_name, alpha, reg, factors, pop_gap, auc, sh_auc, mb_auc, lt_auc]
     with open('data/results.csv', 'a') as result_file:
         wr = csv.writer(result_file, dialect='excel')
         wr.writerow(results)
