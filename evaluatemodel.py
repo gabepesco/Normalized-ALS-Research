@@ -15,7 +15,7 @@ def main():
     # ratio = 65464776.0 / matrix.sum()  # total interactions
 
     # alpha, reg, factors = round(3360 * ratio)/40, 1.19, 128
-    alpha, reg, factors = 10748, 4, 128
+    alpha, reg, factors = 107480, 4, 128
 
     # set this to true if you want to save the model
     print(f'matrix: {matrix_name}, alpha: {alpha}, reg: {reg}, factors: {factors}')

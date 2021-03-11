@@ -111,7 +111,7 @@ def score_model(model, test: sp.csr_matrix, masked, sh, mb):
         # locations where the missing songs are
         true_inds = masked[i, zero_indices].nonzero()[1]
 
-        #add overall roc_auc_score
+        # add overall roc_auc_score
         auc.append(metrics.roc_auc_score(true_labels, recs))
 
         true_labels[true_inds[true_inds >= sh]] = 0
