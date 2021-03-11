@@ -27,12 +27,12 @@ def pn_auc_roc(true, recs, pop_norms):
 
     # drop the first index from all the splits but the first, so that the true song doesn't add to the width
     drop_first = lambda array: array[1:]
-    width_inds_iter = map(drop_first, rec_splits[1:])
-    width_inds = [rec_splits[0]] + list(width_inds_iter)
+    width_indices_iter = map(drop_first, rec_splits[1:])
+    width_indices = [rec_splits[0]] + list(width_indices_iter)
 
     # calculate the width of each rectangle based on the indices it contains
     get_norm_sum = lambda array: pop_norms[array].sum()
-    w_iter = map(get_norm_sum, width_inds)
+    w_iter = map(get_norm_sum, width_indices)
 
     # w is our vector of the widths of the rectangle
     w = np.fromiter(w_iter, dtype=np.float32)
@@ -90,7 +90,7 @@ def run_tests(length=2000000, iterations=250, a=0.0001, scale=30000, true_labels
 
         # reset mask vector to 0s
         mask[:] = 0
-        
+
     print("pop avg:", sum(pop_scores) / len(pop_scores))
     print("rand avg:", sum(rand_scores) / len(rand_scores))
 
