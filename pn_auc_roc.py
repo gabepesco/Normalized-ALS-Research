@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    run_tests(length=1000000, iterations=1000, a=0.0001, scale=40000, true_labels=12)
+    run_tests(length=1000000, iterations=1000, a=0.00001, scale=40000, true_labels=12)
 
 
 def pn_auc_roc(true, recs, pop_norms):
