@@ -126,7 +126,6 @@ def calc_mean_auc(training_set, altered_users, predictions, test_set):
     # Return the mean AUC rounded to three decimal places for both test and popularity benchmark
 
 
-
 def simple_score_model(model, test: sp.csr_matrix, masked):
     # test is playlists with some songs removed
     # masked are the songs that test is missing
@@ -155,7 +154,6 @@ def simple_score_model(model, test: sp.csr_matrix, masked):
         indices, scores = zip(*recommendations)
         indices, scores = np.array(indices), np.array(scores)
 
-
         # get a vector of scores for each song
         recs = scores[np.argsort(indices)]
 
@@ -168,8 +166,8 @@ def simple_score_model(model, test: sp.csr_matrix, masked):
         # add overall roc_auc_score
         auc.append(metrics.roc_auc_score(true_labels, recs))
 
-
     return sum(auc) / len(auc)
+
 
 def score_model(model, test: sp.csr_matrix, masked, sh, mb):
     # test is playlists with some songs removed
@@ -257,7 +255,7 @@ def score_model(model, test: sp.csr_matrix, masked, sh, mb):
     return avg(pop_gaps), avg(auc), avg(sh_auc), avg(mb_auc), avg(lt_auc)
 
 
-def iterate_model(model, test: sp.csr_matrix, masked):
+def iterate_model(model, test: sp.csr_matrix, masked, users=10, iterations=10):
     # test is playlists with some songs removed
     # masked are the songs that test is missing
 
@@ -269,45 +267,53 @@ def iterate_model(model, test: sp.csr_matrix, masked):
         np.save('data/bookkeeping/pops.npy', pops, allow_pickle=True, fix_imports=False)
         del pref
 
-    n = pops.shape[0]
-    all_indices = np.arange(n)
-
-    alphas = []
-    pop_gaps = []
-
-    nonzero_indices = (test[0, :] + masked[0,:]).nonzero()[1]
-    original_user = test[0, :] + masked[0,:]
-    original_avg_pop = pops[nonzero_indices].sum() / nonzero_indices.shape[0]
-    new_user = test[0, :] + masked[0,:]
-    power_pdf = lambda x, a: 45000 * a * np.power(x, a)
-
-    for i in tqdm(range(1)):
-        # indices where we have 1s and 0s in the playlist
-        nonzero_indices = new_user.nonzero()[1]
-        zero_indices = np.delete(all_indices, nonzero_indices)
-
-        recommendations = model.recommend(userid=0,
-                                          user_items=new_user,
-                                          N=66,
-                                          filter_items=nonzero_indices.tolist(),
-                                          filter_already_liked_items=False,
-                                          recalculate_user=True)
-
-        indices, scores = zip(*recommendations)
-        indices, scores = np.array(indices), np.array(scores)
+    #n = pops.shape[0]
+    #all_indices = np.arange(n)
 
 
-        # get average popularity of recommendations
-        rec_avg_pop = pops[indices].sum() / indices.shape[0]
-        # calculate the popularity gap
-        pop_gaps.append((rec_avg_pop - original_avg_pop) / original_avg_pop)
+    #alphas = []
+    #avg_pops = []
+    #pop_gaps = []
 
-        fitting_parameters, covariance = curve_fit(power_pdf, xdata=indices, ydata=pops[indices], p0=0.5, bounds=[0,1])
-        alphas.append(fitting_parameters[0])
+    #nonzero_indices = (test[0, :] + masked[0, :]).nonzero()[1]
+    #original_avg_pop = pops[nonzero_indices].sum() / nonzero_indices.shape[0]
+    #new_user = test[0, :] + masked[0, :]
 
-        new_user[:] = 0
-        new_user[0, indices] = 1
+    #power_pdf = lambda x, a: 45000 * a * np.power(x, a)
+    results = np.zeros((users, iterations))
+    print(np.sum(pops[:66])/66)
+    for u in tqdm(range(users)):
+        # nonzero_indices = (test[u, :] + masked[u, :]).nonzero()[1]
+        # original_avg_pop = pops[nonzero_indices].sum() / nonzero_indices.shape[0]
+        new_user = test[u, :] + masked[u, :]
 
+        for i in range(iterations):
+            # indices where we have 1s and 0s in the playlist
+            nonzero_indices = list(new_user.nonzero()[1])
+            recommendations = model.recommend(userid=0,
+                                              user_items=new_user,
+                                              N=10,
+                                              filter_items=nonzero_indices,
+                                              filter_already_liked_items=False,
+                                              recalculate_user=True)
 
-    #plt.scatter(arange())
-    return alphas, pop_gaps
+            indices, scores = zip(*recommendations)
+            indices, scores = np.array(indices), np.array(scores)
+
+            # get average popularity of recommendations
+            rec_avg_pop = pops[indices].sum() / indices.shape[0]
+            results[u, i] = rec_avg_pop
+            # calculate the popularity gap
+            #pop_gaps.append((rec_avg_pop - original_avg_pop) / original_avg_pop)
+
+            # fitting_parameters, covariance = curve_fit(power_pdf, xdata=indices, ydata=pops[indices], p0=0.5, bounds=[0, 1])
+            # alphas.append(fitting_parameters[0])
+
+            new_user[:] = sp.csr_matrix(np.shape(new_user))
+            new_user[0, indices] = 1
+
+    averages = (np.sum(results, axis=0) / results.shape[0]).ravel()
+    print(results.shape)
+    print(np.shape(averages))
+
+    return list(averages)

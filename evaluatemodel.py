@@ -3,9 +3,11 @@ import scipy.sparse as sp
 import functions
 import pickle
 import csv
+import matplotlib.pyplot as plt
 
 
 def main():
+
     # set these!
     matrix_name = "pref"
     # set this to true if you want to save the model
@@ -47,9 +49,11 @@ def main():
 
 
     del train
-    alphas, dgaps = functions.iterate_model(model, test, masked)
-    print(alphas)
-    print(dgaps)
+    i = 50
+    avgpops = functions.iterate_model(model, test, masked, users=1, iterations=i)
+    # print(alphas)
+    plt.scatter(x=range(i), y=avgpops)
+    plt.show()
     # pop_gap, auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
     # results = [matrix_name, alpha, reg, factors, pop_gap, auc, sh_auc, mb_auc, lt_auc]
     # with open('data/results.csv', 'a') as result_file:
