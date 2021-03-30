@@ -3,9 +3,9 @@ import numpy as np
 
 
 def main():
-    song = 'Signal'
-    artist = 'Sylvan Esso'
-    album = 'What Now'
+    song = 'Gooey'
+    artist = 'Glass Animals'
+    album = 'ZABA'
     n = 20
     exclude_artist = False
 
@@ -20,8 +20,10 @@ def main():
     track_title = f'{song} by {artist} on {album}'
     track_index = np.where(track_titles == track_title)[0][0]
 
-    with open('data/models/bm25_len_norm_conf_a774.0_r1.19_f128_model.pickle', 'rb') as f:
+    with open('data/models/reciprocal_pop_conf_a10748_r1_f128_model.pickle', 'rb') as f:
+    # with open('data/models/bm25_len_norm_conf_a774.0_r1.19_f128_model.pickle', 'rb') as f:
         model = pickle.load(f)
+
     recs = model.similar_items(itemid=track_index, N=n)
     rec_indices, scores = zip(*recs)
 
@@ -39,7 +41,7 @@ def main():
             # noinspection PyTypeChecker
             rec_list.append(track + '\n')
 
-    with open(f'data/song_recs/{song}.txt', 'a') as f:
+    with open(f'data/song_recs/{song}_recip.txt', 'a') as f:
         f.writelines(rec_list)
         f.close()
 

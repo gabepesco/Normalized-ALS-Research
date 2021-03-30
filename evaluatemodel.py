@@ -7,7 +7,8 @@ import csv
 
 def main():
     # set these!
-    matrix_name = "reciprocal_pop_conf"
+    matrix_name = "pref"
+    # set this to true if you want to save the model
     save_model = True
 
     matrix_filename = f'data/matrices/{matrix_name}_matrix.npz'
@@ -15,9 +16,9 @@ def main():
     # ratio = 65464776.0 / matrix.sum()  # total interactions
 
     # alpha, reg, factors = round(3360 * ratio)/40, 1.19, 128
-    alpha, reg, factors = 107480, 4, 128
+    # factors = 107480?
+    alpha, reg, factors = 7900.0, 1.3, 128
 
-    # set this to true if you want to save the model
     print(f'matrix: {matrix_name}, alpha: {alpha}, reg: {reg}, factors: {factors}')
 
     os.environ['MKL_NUM_THREADS'] = '1'
@@ -26,7 +27,6 @@ def main():
 
     train, test, masked = functions.get_train_test_masked(matrix)
 
-    print(f'alpha: {alpha}, reg: {reg}, factors: {factors}')
     model_name = f'data/models/{matrix_name}_a{alpha}_r{reg}_f{factors}_model.pickle'
 
     try:
@@ -44,13 +44,17 @@ def main():
                 os.mkdir('data/models')
                 with open(model_name, 'wb') as output_file:
                     pickle.dump(model, output_file)
-    del train
 
-    pop_gap, auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
-    results = [matrix_name, alpha, reg, factors, pop_gap, auc, sh_auc, mb_auc, lt_auc]
-    with open('data/results.csv', 'a') as result_file:
-        wr = csv.writer(result_file, dialect='excel')
-        wr.writerow(results)
+
+    del train
+    alphas, dgaps = functions.iterate_model(model, test, masked)
+    print(alphas)
+    print(dgaps)
+    # pop_gap, auc, sh_auc, mb_auc, lt_auc = functions.score_model(model, test, masked, sh, mb)
+    # results = [matrix_name, alpha, reg, factors, pop_gap, auc, sh_auc, mb_auc, lt_auc]
+    # with open('data/results.csv', 'a') as result_file:
+    #     wr = csv.writer(result_file, dialect='excel')
+    #     wr.writerow(results)
 
 
 main()
