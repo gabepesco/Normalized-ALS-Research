@@ -238,7 +238,11 @@ def iterate_model(model, test: sp.csr_matrix, masked, users=10, iterations=10):
 
 
 def gini_coefficient(prefs):
-    pops = np.sum(prefs, axis=0)
+    unsorted_pops = np.array(prefs.sum(axis=0)).ravel()
+    sort_indices = np.argsort(unsorted_pops)
+    matrix = prefs[:, sort_indices]
+    pops = matrix.sum(axis=0)
+    pops = np.ravel(pops)
     vec = np.cumsum(pops)
     # vec MUST BE a sorted cumulative sum
     A = (len(vec) * vec[-1]) / 2.0
@@ -254,7 +258,7 @@ def get_playlist_lengths():
 	return a
 
 
-def skewnorm_fit(data):
+def f_dist_fit(data):
 	# estimate parameters from data
 	mean, var, skew, kurt = stats.f.fit(data)
 	print(f'mean = {mean}, var = {var}, skew = {skew}, kurt = {kurt}')

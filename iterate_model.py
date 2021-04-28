@@ -11,8 +11,11 @@ def main():
 	os.environ['MKL_NUM_THREADS'] = '1'
 	os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 	mpd = sp.load_npz('data/matrices/pref_matrix.npz')
-	current_pref = mpd
-	for i in range(11):
+	current_pref = mpd[:100000, :]
+	print(f'gini: {functions.gini_coefficient(current_pref)}')
+	sp.save_npz(f'data/iteration/matrices/pref{0}.npz', current_pref, compressed=True)
+
+	for i in range(5):
 		model_name = f'data/iteration/models/model{i}.pkl'
 		try:
 			with open(model_name, "rb") as input_file:
@@ -27,12 +30,14 @@ def main():
 		# try:
 		# 	current_pref = sp.load_npz(f'data/iteration/matrices/pref{i}.npz')
 		# except FileNotFoundError or ValueError:
-		sp.save_npz(f'data/iteration/matrices/pref{i}.npz', current_pref, compressed=True)
+		# print(f'iter: 0, gini: {functions.gini_coefficient(current_pref)}')
 
 		current_pref = get_next_pref(current_pref, model)
+		print(f'gini: {functions.gini_coefficient(current_pref)}')
+		sp.save_npz(f'data/iteration/matrices/pref{i+1}.npz', current_pref, compressed=True)
 
 
-def get_next_pref(pref, model, batch_size=50):
+def get_next_pref(pref, model, batch_size=100):
 	m, n = np.shape(pref)
 	new_pref = sp.lil_matrix((m, n))
 	lengths = functions.get_playlist_length_samples(n=m)
@@ -47,8 +52,7 @@ def get_next_pref(pref, model, batch_size=50):
 			recs = model.recommend(userid=idx,
 									user_items=pref,
 									N=lengths[idx],
-									filter_items=list(pref[idx, :].nonzero()[1]),
-									filter_already_liked_items=False,
+									filter_already_liked_items=True,
 									recalculate_user=False)
 			indices, scores = zip(*recs)
 			if i == 0:
@@ -59,13 +63,12 @@ def get_next_pref(pref, model, batch_size=50):
 			x[start:end] = idx
 			y[start:end] = indices
 		new_pref[(x, y)] = 1
-	return new_pref
+	return sp.csr_matrix(new_pref)
 
 
 main()
-
-# y = np.zeros((10, ))
-# b = np.array([1, 2, 3])
-# print(y, b)
-# y[2:5] = b
-# print(y)
+# mpd = sp.load_npz('data/matrices/pref_matrix.npz')
+# print(functions.gini_coefficient(mpd))
+# for i in range(5):
+# 	pref = sp.load_npz(f'data/iteration/matrices/pref{i}.npz')
+# 	print(functions.gini_coefficient(pref))
